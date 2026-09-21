@@ -1,12 +1,114 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   Wifi, Battery, Signal, 
   BrainCircuit, SearchCode, History, Settings, Home as HomeIcon,
-  Scan, ChevronRight, User, Lock, Globe, ChevronLeft, FileCode, CheckCircle2, GitBranch, Laptop, ExternalLink, Send, Smartphone, ArrowDown, FolderGit2, Network, Cpu, ShieldCheck, ChevronDown, ChevronUp, Waypoints
+  Scan, ChevronRight, User, Lock, Globe, ChevronLeft, FileCode, CheckCircle2, GitBranch, Laptop, ExternalLink, Send, Smartphone, ArrowDown, FolderGit2, Network, Cpu, ShieldCheck, ChevronDown, ChevronUp, Waypoints, Camera, CameraOff, Search, GitPullRequest, CircleAlert
 } from 'lucide-react';
+
+const DEMO = {
+  repo: 'squid-vibes-hub',
+  file: 'avatar.tsx',
+  symbol: 'Avatar()',
+  lines: 'L6–L15',
+  commit: 'a9a3ca3',
+  commitMsg: '[skip lovable] Use tech stack vite_react_shadcn_ts',
+  author: 'gpt-engineer-app[bot]',
+  date: 'Oct 31, 2025',
+  added: 38,
+  filesInCommit: 76,
+  answer: 'Avatar() came in with the project’s initial Vite + React + shadcn/ui scaffold. It wraps the Radix Avatar primitive.',
+  fact: 'Introduced in commit a9a3ca3 (“Use tech stack vite_react_shadcn_ts”), together with 75 other files. No later commit has changed this file.',
+  interpretation: 'The commit sets up the tech stack, so Avatar most likely comes from the shadcn/ui starter rather than being written for a specific feature.',
+  unknown: 'The history does not say whether the app relies on Avatar on purpose or just inherited it.',
+  diff: [
+    '@@ -0,0 +1,38 @@',
+    '+import * as AvatarPrimitive from "@radix-ui/react-avatar";',
+    '+',
+    '+const Avatar = React.forwardRef<',
+    '+  React.ElementRef<typeof AvatarPrimitive.Root>,',
+    '+  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>',
+    '+>(({ className, ...props }, ref) => (',
+    '+  <AvatarPrimitive.Root',
+    '+    ref={ref}',
+    '+    className={cn("relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full", className)}',
+    '+    {...props}',
+    '+  />',
+    '+));',
+    '+',
+    '+const AvatarImage = React.forwardRef(...)',
+    '+const AvatarFallback = React.forwardRef(...)',
+    '+export { Avatar, AvatarImage, AvatarFallback };',
+  ],
+};
+
+interface Memory {
+  id: string;
+  title: string;
+  repo: string;
+  summary: string;
+  chain: { kind: 'issue' | 'pr' | 'commit'; label: string }[];
+  icon: 'user' | 'lock' | 'globe';
+  action?: boolean;
+}
+
+const MEMORIES: Memory[] = [
+  {
+    id: 'avatar',
+    title: 'Avatar component',
+    repo: 'squid-vibes-hub',
+    summary: 'Added with the initial shadcn/ui starter scaffold. No later changes.',
+    chain: [{ kind: 'commit', label: 'a9a3ca3' }],
+    icon: 'user',
+    action: true,
+  },
+  {
+    id: 'retry-409',
+    title: 'Retry on 409 conflicts',
+    repo: 'gateway-service',
+    summary: 'Duplicate charges appeared during network retry storms, so the client now backs off exponentially when it gets a 409.',
+    chain: [{ kind: 'issue', label: '#67' }, { kind: 'pr', label: '#45' }, { kind: 'commit', label: 'a1b2c3d' }],
+    icon: 'globe',
+  },
+  {
+    id: 'token-jitter',
+    title: 'Token refresh jitter',
+    repo: 'gateway-service',
+    summary: 'All pods refreshed tokens at the same second and flooded the auth endpoint. Renewal now uses random jitter.',
+    chain: [{ kind: 'issue', label: '#42' }, { kind: 'pr', label: '#48' }, { kind: 'commit', label: 'b2c3d4e' }],
+    icon: 'lock',
+  },
+  {
+    id: 'timeouts',
+    title: 'Default gateway timeouts',
+    repo: 'gateway-service',
+    summary: 'Default timeout and retry settings were added for the payment gateway. No linked PR or issue was found.',
+    chain: [{ kind: 'commit', label: 'c3d4e5f' }],
+    icon: 'globe',
+  },
+];
+
+const MemoryIcon = ({ kind }: { kind: Memory['icon'] }) =>
+  kind === 'user' ? <User size={18} /> : kind === 'lock' ? <Lock size={18} /> : <Globe size={18} />;
+
+const ChainChips = ({ chain }: { chain: Memory['chain'] }) => (
+  <div className="chain">
+    {chain.map((c, i) => (
+      <span key={c.label} className={`chain-chip ${c.kind}`}>
+        {c.kind === 'issue' ? <CircleAlert size={11} /> : c.kind === 'pr' ? <GitPullRequest size={11} /> : <GitBranch size={11} />}
+        {c.label}
+        {i < chain.length - 1 && <ChevronRight size={11} className="chain-sep" />}
+      </span>
+    ))}
+  </div>
+);
+
+const SCAN_FLOW = ['scan', 'reasoning', 'evidence', 'full-history', 'diff-view', 'commit', 'handoff', 'architecture', 'local-ai'];
+const navTab = (tab: string) => (SCAN_FLOW.includes(tab) ? 'scan' : tab);
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
+  const [openMemory, setOpenMemory] = useState<string | null>(null);
+  const current = navTab(activeTab);
   const [time, setTime] = useState(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
 
   useEffect(() => {
@@ -35,7 +137,7 @@ export default function App() {
           DevMemory
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '12px', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setActiveTab('home')}>Restart Demo</button>
+          <button className="restart-btn" onClick={() => { setOpenMemory(null); setActiveTab('home'); }}>Restart demo</button>
           <div className="user-profile">
             <div className="status-indicator"></div>
             tejus468
@@ -46,9 +148,9 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="content">
-        {activeTab === 'home' && <HomeScreen setActiveTab={setActiveTab} />}
+        {activeTab === 'home' && <HomeScreen setActiveTab={setActiveTab} onOpenMemory={(id) => { setOpenMemory(id); setActiveTab('memory'); }} />}
         {activeTab === 'scan' && <ScanScreen setActiveTab={setActiveTab} />}
-        {activeTab === 'memory' && <MemoryScreen />}
+        {activeTab === 'memory' && <MemoryScreen setActiveTab={setActiveTab} initialOpen={openMemory} />}
         {activeTab === 'settings' && <SettingsScreen />}
         {activeTab === 'reasoning' && <ReasoningScreen setActiveTab={setActiveTab} />}
         {activeTab === 'evidence' && <EvidenceScreen setActiveTab={setActiveTab} />}
@@ -63,19 +165,19 @@ export default function App() {
 
       {/* Bottom Navigation */}
       <nav className="bottom-nav">
-        <button className={`nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
+        <button className={`nav-item ${current === 'home' ? 'active' : ''}`} aria-current={current === 'home' ? 'page' : undefined} onClick={() => setActiveTab('home')}>
           <HomeIcon size={22} className="nav-icon" />
           Home
         </button>
-        <button className={`nav-item ${activeTab === 'scan' ? 'active' : ''}`} onClick={() => setActiveTab('scan')}>
+        <button className={`nav-item ${current === 'scan' ? 'active' : ''}`} aria-current={current === 'scan' ? 'page' : undefined} onClick={() => setActiveTab('scan')}>
           <Scan size={22} className="nav-icon" />
           Scan
         </button>
-        <button className={`nav-item ${activeTab === 'memory' ? 'active' : ''}`} onClick={() => setActiveTab('memory')}>
+        <button className={`nav-item ${current === 'memory' ? 'active' : ''}`} aria-current={current === 'memory' ? 'page' : undefined} onClick={() => setActiveTab('memory')}>
           <History size={22} className="nav-icon" />
           Memory
         </button>
-        <button className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>
+        <button className={`nav-item ${current === 'settings' ? 'active' : ''}`} aria-current={current === 'settings' ? 'page' : undefined} onClick={() => setActiveTab('settings')}>
           <Settings size={22} className="nav-icon" />
           Settings
         </button>
@@ -84,14 +186,14 @@ export default function App() {
   );
 }
 
-function HomeScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
+function HomeScreen({ setActiveTab, onOpenMemory }: { setActiveTab: (tab: string) => void; onOpenMemory: (id: string) => void }) {
   return (
     <>
       <div className="greeting">
         <h1>Your code remembers.</h1>
       </div>
 
-      <div className="card primary" onClick={() => setActiveTab('scan')}>
+      <div className="card primary" role="button" tabIndex={0} onClick={() => setActiveTab('scan')} onKeyDown={(e) => { if (e.key === 'Enter') setActiveTab('scan'); }}>
         <div className="card-title">
           <Scan size={20} />
           Scan Code
@@ -104,13 +206,13 @@ function HomeScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
         </button>
       </div>
 
-      <div className="card" onClick={() => setActiveTab('memory')}>
+      <div className="card" role="button" tabIndex={0} onClick={() => setActiveTab('memory')} onKeyDown={(e) => { if (e.key === 'Enter') setActiveTab('memory'); }}>
         <div className="card-title">
           <SearchCode size={20} />
           Ask DevMemory
         </div>
         <div className="card-subtitle">
-          Search your coding history or ask about architectural decisions.
+          Browse and search the history behind your code.
         </div>
       </div>
 
@@ -120,30 +222,16 @@ function HomeScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           Recent Memories
         </div>
         <div className="memory-list">
-          <div className="memory-item">
-            <div className="memory-icon"><User size={18}/></div>
-            <div className="memory-content">
-              <h4>Avatar component</h4>
-              <p>Added fallback initials for missing images.</p>
-            </div>
-            <ChevronRight size={16} color="var(--text-muted)" style={{marginLeft: 'auto', alignSelf: 'center'}} />
-          </div>
-          <div className="memory-item">
-            <div className="memory-icon"><Lock size={18}/></div>
-            <div className="memory-content">
-              <h4>Auth session invalidation</h4>
-              <p>Fixed bug where stale JWTs caused loops.</p>
-            </div>
-            <ChevronRight size={16} color="var(--text-muted)" style={{marginLeft: 'auto', alignSelf: 'center'}} />
-          </div>
-          <div className="memory-item">
-            <div className="memory-icon"><Globe size={18}/></div>
-            <div className="memory-content">
-              <h4>Gateway timeout handling</h4>
-              <p>Increased timeout to 15s for upstream API.</p>
-            </div>
-            <ChevronRight size={16} color="var(--text-muted)" style={{marginLeft: 'auto', alignSelf: 'center'}} />
-          </div>
+          {MEMORIES.slice(0, 3).map((m) => (
+            <button key={m.id} className="memory-item memory-button" onClick={() => onOpenMemory(m.id)}>
+              <div className="memory-icon"><MemoryIcon kind={m.icon} /></div>
+              <div className="memory-content">
+                <h4>{m.title}</h4>
+                <p>{m.repo}</p>
+              </div>
+              <ChevronRight size={16} color="var(--text-muted)" style={{marginLeft: 'auto', alignSelf: 'center'}} />
+            </button>
+          ))}
         </div>
       </div>
     </>
@@ -152,6 +240,33 @@ function HomeScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
 
 function ScanScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const [scanState, setScanState] = useState<'idle' | 'scanning' | 'success'>('idle');
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCameraOn(false);
+  };
+
+  useEffect(() => stopCamera, []);
+
+  const toggleCamera = async () => {
+    if (cameraOn) return stopCamera();
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      streamRef.current = stream;
+      setCameraOn(true);
+      requestAnimationFrame(() => {
+        if (videoRef.current) videoRef.current.srcObject = stream;
+      });
+    } catch {
+      setCameraError('Camera unavailable. Showing the sample snippet instead.');
+    }
+  };
 
   const handleScan = () => {
     setScanState('scanning');
@@ -173,10 +288,11 @@ function ScanScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
       </div>
 
       <div className="scanner-container">
+        {cameraOn && <video ref={videoRef} className="scanner-video" autoPlay playsInline muted />}
         <div className="scanner-frame"></div>
         <div className={`scanner-line ${scanState === 'scanning' ? 'active' : ''}`}></div>
         
-        <div className="code-snippet">
+        <div className="code-snippet" style={cameraOn ? { display: 'none' } : undefined}>
           <span className="code-keyword">const</span> <span className="code-component">Avatar</span> = React.<span className="code-property">forwardRef</span>&lt;{'\n'}
           {'  '}React.<span className="code-component">ElementRef</span>&lt;<span className="code-keyword">typeof</span> AvatarPrimitive.<span className="code-property">Root</span>&gt;,{'\n'}
           {'  '}React.<span className="code-component">ComponentPropsWithoutRef</span>&lt;<span className="code-keyword">typeof</span> AvatarPrimitive.<span className="code-property">Root</span>&gt;{'\n'}
@@ -213,7 +329,7 @@ function ScanScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               <GitBranch size={16} className="detail-icon" />
               <div className="detail-text">
                 <span className="detail-label">Repository</span>
-                <span className="detail-value">squid-vibes-hub</span>
+                <span className="detail-value">{DEMO.repo}</span>
               </div>
             </div>
             <div className="detail-item">
@@ -241,7 +357,7 @@ function ScanScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
               <FolderGit2 size={16} className="detail-icon" />
               <div className="detail-text">
                 <span className="detail-label">Lines</span>
-                <span className="detail-value">L6–L20</span>
+                <span className="detail-value">{DEMO.lines}</span>
               </div>
             </div>
             <div className="detail-item">
@@ -258,27 +374,125 @@ function ScanScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           </button>
         </div>
       )}
+
+      <div className="scan-tools">
+        <button className="btn-secondary scan-camera" onClick={toggleCamera}>
+          {cameraOn ? <CameraOff size={16} /> : <Camera size={16} />}
+          {cameraOn ? 'Turn camera off' : 'Use camera'}
+        </button>
+        {cameraError && <p className="settings-note">{cameraError}</p>}
+        <p className="settings-note">Prototype: code recognition is simulated with a sample snippet.</p>
+      </div>
     </>
   );
 }
 
-function MemoryScreen() {
+function MemoryScreen({ setActiveTab, initialOpen }: { setActiveTab: (tab: string) => void; initialOpen: string | null }) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState<string | null>(initialOpen);
+  const q = query.trim().toLowerCase();
+  const shown = MEMORIES.filter((m) => !q || `${m.title} ${m.repo} ${m.summary} ${m.chain.map((c) => c.label).join(' ')}`.toLowerCase().includes(q));
+
   return (
-    <div className="placeholder-screen">
-      <History className="placeholder-icon" />
-      <h2>Developer Memory</h2>
-      <p>Your historical context will appear here.</p>
-    </div>
+    <>
+      <div className="screen-title" style={{ marginBottom: '-8px' }}>
+        <h2>Developer Memory</h2>
+        <p>{MEMORIES.length} memories from {new Set(MEMORIES.map((m) => m.repo)).size} repositories</p>
+      </div>
+
+      <label className="search-box">
+        <Search size={16} />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search memories, commits, PRs…" aria-label="Search memories" />
+      </label>
+
+      {shown.length === 0 && <p className="empty-note">No memory matches “{query}”.</p>}
+
+      <div className="memory-list">
+        {shown.map((m) => {
+          const isOpen = open === m.id;
+          return (
+            <div key={m.id} className="memory-card">
+              <button className="memory-item memory-button" onClick={() => setOpen(isOpen ? null : m.id)} aria-expanded={isOpen}>
+                <div className="memory-icon"><MemoryIcon kind={m.icon} /></div>
+                <div className="memory-content">
+                  <h4>{m.title}</h4>
+                  <p>{m.repo}</p>
+                </div>
+                {isOpen ? <ChevronUp size={16} color="var(--text-muted)" style={{ marginLeft: 'auto', alignSelf: 'center' }} /> : <ChevronDown size={16} color="var(--text-muted)" style={{ marginLeft: 'auto', alignSelf: 'center' }} />}
+              </button>
+              {isOpen && (
+                <div className="memory-detail">
+                  <ChainChips chain={m.chain} />
+                  <p>{m.summary}</p>
+                  {m.action && (
+                    <button className="btn-secondary" onClick={() => setActiveTab('reasoning')}>
+                      <BrainCircuit size={16} /> Why does this exist?
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
 function SettingsScreen() {
+  const [mode, setMode] = useState<'local' | 'cloud'>('local');
+  const [keepOnDevice, setKeepOnDevice] = useState(true);
+
   return (
-    <div className="placeholder-screen">
-      <Settings className="placeholder-icon" />
-      <h2>Settings</h2>
-      <p>Preferences, integrations, and profile.</p>
-    </div>
+    <>
+      <div className="screen-title" style={{ marginBottom: '-8px' }}>
+        <h2>Settings</h2>
+        <p>Prototype preferences</p>
+      </div>
+
+      <div className="settings-group">
+        <div className="settings-label">Default reasoning</div>
+        <div className="mode-selector">
+          <button className={`mode-btn ${mode === 'local' ? 'active' : ''}`} onClick={() => setMode('local')}>Local</button>
+          <button className={`mode-btn ${mode === 'cloud' ? 'active' : ''}`} onClick={() => setMode('cloud')}>Cloud</button>
+        </div>
+        <p className="settings-note">
+          {mode === 'local' ? 'Concept: a Gemma model on the phone explains code using retrieved history.' : 'Uses the DevMemory backend to explain code using retrieved history.'}
+        </p>
+      </div>
+
+      <div className="settings-group">
+        <div className="settings-row">
+          <div>
+            <div className="settings-title">Keep code on device</div>
+            <div className="settings-note">Concept: keep source code on the phone and send only commit and PR metadata.</div>
+          </div>
+          <button role="switch" aria-checked={keepOnDevice} aria-label="Keep code on device" className={`toggle ${keepOnDevice ? 'on' : ''}`} onClick={() => setKeepOnDevice(!keepOnDevice)}>
+            <span />
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-group">
+        <div className="settings-label">Indexed repositories</div>
+        {['squid-vibes-hub', 'gateway-service'].map((r) => (
+          <div key={r} className="settings-row">
+            <div className="settings-title"><FolderGit2 size={15} /> {r}</div>
+            <span className="settings-badge">Indexed</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="settings-group">
+        <div className="settings-row">
+          <div>
+            <div className="settings-title">Desktop companion</div>
+            <div className="settings-note">Hand an investigation off to DevMemory Desktop.</div>
+          </div>
+          <span className="settings-badge muted">Prototype</span>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -293,7 +507,7 @@ function ReasoningScreen({ setActiveTab }: { setActiveTab: (tab: string) => void
         </button>
         <div className="screen-title">
           <h2>Why does this exist?</h2>
-          <p>Avatar() · avatar.tsx</p>
+          <p>{DEMO.symbol} · {DEMO.file}</p>
         </div>
       </div>
 
@@ -334,7 +548,7 @@ function ReasoningScreen({ setActiveTab }: { setActiveTab: (tab: string) => void
         </div>
         <div style={{ fontSize: '13px', marginBottom: '12px' }}>
           <span style={{ color: 'var(--text-muted)' }}>Status: </span>
-          <span style={{ color: '#10b981' }}>Ready</span>
+          <span style={{ color: '#f59e0b' }}>Concept · not yet on device</span>
         </div>
         <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
           Planned on-device model: DevMemory retrieves historical evidence first. The local model uses that evidence to explain why the code exists.
@@ -345,31 +559,29 @@ function ReasoningScreen({ setActiveTab }: { setActiveTab: (tab: string) => void
       </div>
 
       <div className="answer-section">
-        <h3 className="answer-heading">Why Avatar() exists</h3>
-        <p className="answer-text">
-          Avatar() was introduced as a reusable application-level wrapper around Radix Avatar primitives.
-        </p>
+        <h3 className="answer-heading">Why {DEMO.symbol} exists</h3>
+        <p className="answer-text">{DEMO.answer}</p>
       </div>
 
       <div className="analysis-blocks">
         <div className="analysis-block fact">
           <div className="block-label" style={{ textTransform: 'uppercase' }}><CheckCircle2 size={14}/> Fact</div>
           <div className="block-content">
-            Introduced in commit a9a3ca3.
+            {DEMO.fact}
           </div>
         </div>
 
         <div className="analysis-block interpretation">
           <div className="block-label" style={{ textTransform: 'uppercase' }}><BrainCircuit size={14}/> Interpretation</div>
           <div className="block-content">
-            The diff suggests the component was created as a reusable UI abstraction.
+            {DEMO.interpretation}
           </div>
         </div>
 
         <div className="analysis-block unknown">
           <div className="block-label" style={{ textTransform: 'uppercase' }}><SearchCode size={14}/> Unknown</div>
           <div className="block-content">
-            The available history does not explicitly state the original product requirement.
+            {DEMO.unknown}
           </div>
         </div>
       </div>
@@ -439,21 +651,21 @@ function EvidenceScreen({ setActiveTab }: { setActiveTab: (tab: string) => void 
       <div className="card" style={{marginBottom: '16px'}}>
         <div className="card-title"><GitBranch size={16} /> 1. COMMIT</div>
         <div className="timeline-time" style={{margin: '8px 0'}}>a9a3ca3</div>
-        <div className="card-subtitle" style={{marginBottom: '16px'}}>Avatar component introduced</div>
+        <div className="card-subtitle" style={{marginBottom: '16px'}}>{DEMO.commitMsg} · {DEMO.author}</div>
         <button className="btn-secondary" onClick={() => setActiveTab('commit')}>View commit</button>
       </div>
 
       <div className="card" style={{marginBottom: '16px'}}>
         <div className="card-title"><FileCode size={16} /> 2. DIFF</div>
         <div className="timeline-time" style={{margin: '8px 0'}}>avatar.tsx</div>
-        <div className="card-subtitle" style={{marginBottom: '16px'}}>Added Radix Avatar wrapper and fallback components</div>
+        <div className="card-subtitle" style={{marginBottom: '16px'}}>+{DEMO.added} lines: Avatar, AvatarImage and AvatarFallback</div>
         <button className="btn-secondary" onClick={() => setActiveTab('diff-view')}>View diff</button>
       </div>
 
       <div className="card" style={{marginBottom: '24px'}}>
         <div className="card-title"><History size={16} /> 3. SYMBOL HISTORY</div>
         <div className="timeline-time" style={{margin: '8px 0'}}>Avatar()</div>
-        <div className="card-subtitle" style={{marginBottom: '16px'}}>First introduced in a9a3ca3</div>
+        <div className="card-subtitle" style={{marginBottom: '16px'}}>First introduced in {DEMO.commit}, unchanged since</div>
         <button className="btn-secondary" onClick={() => setActiveTab('full-history')}>View history</button>
       </div>
 
@@ -476,7 +688,7 @@ function SymbolHistoryScreen({ setActiveTab }: { setActiveTab: (tab: string) => 
         </button>
         <div className="screen-title">
           <h2>Avatar() history</h2>
-          <p>React component · avatar.tsx · squid-vibes-hub</p>
+          <p>React component · {DEMO.file} · {DEMO.repo}</p>
         </div>
       </div>
 
@@ -484,22 +696,15 @@ function SymbolHistoryScreen({ setActiveTab }: { setActiveTab: (tab: string) => 
         <div className="timeline-item">
           <div className="timeline-dot"></div>
           <div className="timeline-content">
-            <div className="timeline-time">a9a3ca3</div>
-            <div className="timeline-desc">Introduced</div>
+            <div className="timeline-time">{DEMO.commit} · {DEMO.date}</div>
+            <div className="timeline-desc">Introduced by {DEMO.author}</div>
           </div>
         </div>
-        <div className="timeline-item">
-          <div className="timeline-dot"></div>
+        <div className="timeline-item" style={{opacity: 0.7}}>
+          <div className="timeline-dot" style={{borderColor: 'var(--text-muted)'}}></div>
           <div className="timeline-content">
-            <div className="timeline-time">Later commit</div>
-            <div className="timeline-desc">Updated implementation</div>
-          </div>
-        </div>
-        <div className="timeline-item">
-          <div className="timeline-dot"></div>
-          <div className="timeline-content">
-            <div className="timeline-time">Current</div>
-            <div className="timeline-desc">Shared UI component</div>
+            <div className="timeline-time" style={{color: 'var(--text-muted)'}}>Current</div>
+            <div className="timeline-desc">No later commits touch this file</div>
           </div>
         </div>
       </div>
@@ -521,8 +726,8 @@ function CommitScreen({ setActiveTab }: { setActiveTab: (tab: string) => void })
           <ChevronLeft size={20} />
         </button>
         <div className="screen-title">
-          <h2>a9a3ca3</h2>
-          <p>Avatar component introduced</p>
+          <h2>{DEMO.commit}</h2>
+          <p>{DEMO.commitMsg}</p>
         </div>
       </div>
 
@@ -538,7 +743,7 @@ function CommitScreen({ setActiveTab }: { setActiveTab: (tab: string) => void })
           <BrainCircuit size={16} className="detail-icon" />
           <div className="detail-text">
             <span className="detail-label">Technical summary</span>
-            <span className="detail-value" style={{fontSize: '13px', lineHeight: '1.5', marginTop: '4px'}}>Added Avatar, AvatarImage and AvatarFallback around Radix primitives.</span>
+            <span className="detail-value" style={{fontSize: '13px', lineHeight: '1.5', marginTop: '4px'}}>Part of a {DEMO.filesInCommit}-file commit by {DEMO.author} on {DEMO.date}. Adds Avatar, AvatarImage and AvatarFallback around Radix primitives.</span>
           </div>
         </div>
       </div>
@@ -561,8 +766,8 @@ function CommitScreen({ setActiveTab }: { setActiveTab: (tab: string) => void })
         <div className="timeline-item" style={{opacity: 0.7}}>
           <div className="timeline-dot" style={{borderColor: 'var(--text-muted)'}}></div>
           <div className="timeline-content">
-            <div className="timeline-time" style={{color: 'var(--text-muted)'}}>Later</div>
-            <div className="timeline-desc">Maintenance changes</div>
+            <div className="timeline-time" style={{color: 'var(--text-muted)'}}>Since</div>
+            <div className="timeline-desc">File unchanged</div>
           </div>
         </div>
       </div>
@@ -575,7 +780,7 @@ function CommitScreen({ setActiveTab }: { setActiveTab: (tab: string) => void })
       {showToast && (
         <div className="laptop-toast" style={{background: '#6366f1'}}>
           <span>GitHub handoff</span>
-          <span className="laptop-toast-sub">Ready to open commit a9a3ca3 on GitHub.</span>
+          <span className="laptop-toast-sub">Ready to open commit {DEMO.commit} on GitHub.</span>
         </div>
       )}
     </>
@@ -590,43 +795,30 @@ function DiffScreen({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
           <ChevronLeft size={20} />
         </button>
         <div className="screen-title">
-          <h2>Commit a9a3ca3</h2>
-          <p>avatar.tsx</p>
+          <h2>Commit {DEMO.commit}</h2>
+          <p>{DEMO.file}</p>
         </div>
       </div>
 
       <div className="analysis-blocks">
-        <div className="analysis-block interpretation">
-          <div className="block-label"><BrainCircuit size={14}/> Supports this interpretation</div>
-          <div className="block-content">
-            The component wraps Radix Avatar primitives and exposes a reusable application-level API.
-          </div>
-        </div>
         <div className="analysis-block fact">
           <div className="block-label"><CheckCircle2 size={14}/> Historical fact</div>
           <div className="block-content">
-            Introduced in commit a9a3ca3.
+            The whole file was added in this commit: +{DEMO.added} lines, nothing removed.
+          </div>
+        </div>
+        <div className="analysis-block interpretation">
+          <div className="block-label"><BrainCircuit size={14}/> Supports this interpretation</div>
+          <div className="block-content">
+            Standard Radix wrapper code with the usual forwardRef and cn() pattern, typical of a starter template.
           </div>
         </div>
       </div>
 
       <div className="diff-view">
-        <div className="diff-line diff-context">@@ -0,0 +1,15 @@</div>
-        <div className="diff-line diff-add">+ import * as AvatarPrimitive from "@radix-ui/react-avatar"</div>
-        <div className="diff-line diff-add">+ </div>
-        <div className="diff-line diff-add">+ const Avatar = React.forwardRef&lt;</div>
-        <div className="diff-line diff-add">+   React.ElementRef&lt;typeof AvatarPrimitive.Root&gt;,</div>
-        <div className="diff-line diff-add">+   React.ComponentPropsWithoutRef&lt;typeof AvatarPrimitive.Root&gt;</div>
-        <div className="diff-line diff-add">+ &gt;((&#123; className, ...props &#125;, ref) =&gt; (</div>
-        <div className="diff-line diff-add">+   &lt;AvatarPrimitive.Root</div>
-        <div className="diff-line diff-add">+     ref=&#123;ref&#125;</div>
-        <div className="diff-line diff-add">+     className=&#123;cn("relative flex h-10 w-10 shrink-0", className)&#125;</div>
-        <div className="diff-line diff-add">+     &#123;...props&#125;</div>
-        <div className="diff-line diff-add">+   /&gt;</div>
-        <div className="diff-line diff-add">+ ))</div>
-        <div className="diff-line diff-add">+ </div>
-        <div className="diff-line diff-add">+ const AvatarImage = React.forwardRef(...)</div>
-        <div className="diff-line diff-add">+ const AvatarFallback = React.forwardRef(...)</div>
+        {DEMO.diff.map((line, i) => (
+          <div key={i} className={`diff-line ${line.startsWith('@@') ? 'diff-context' : 'diff-add'}`}>{line}</div>
+        ))}
       </div>
     </>
   );
@@ -754,20 +946,20 @@ function DesktopPreviewScreen({ setActiveTab }: { setActiveTab: (tab: string) =>
             <div className="desktop-summary">
               <div className="desktop-title"><BrainCircuit size={16} style={{display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px'}}/> Why does this exist?</div>
               <div style={{ fontSize: '15px', lineHeight: '1.6' }}>
-                Avatar() was introduced as a reusable application-level wrapper around Radix Avatar primitives.
+                {DEMO.answer}
               </div>
               <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
                 <div style={{ flex: 1, padding: '16px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '12px', color: '#3b82f6', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px' }}>Fact</div>
-                  <div style={{ fontSize: '13px' }}>Introduced in a9a3ca3.</div>
+                  <div style={{ fontSize: '13px' }}>{DEMO.fact}</div>
                 </div>
                 <div style={{ flex: 1, padding: '16px', background: 'rgba(139, 92, 246, 0.1)', border: '1px solid rgba(139, 92, 246, 0.2)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '12px', color: '#8b5cf6', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px' }}>Interpretation</div>
-                  <div style={{ fontSize: '13px' }}>The diff suggests the component was created as a reusable UI abstraction.</div>
+                  <div style={{ fontSize: '13px' }}>{DEMO.interpretation}</div>
                 </div>
                 <div style={{ flex: 1, padding: '16px', background: 'rgba(100, 116, 139, 0.1)', border: '1px solid rgba(100, 116, 139, 0.2)', borderRadius: '8px' }}>
                   <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px' }}>Unknown</div>
-                  <div style={{ fontSize: '13px' }}>The available history does not explicitly state the original product requirement.</div>
+                  <div style={{ fontSize: '13px' }}>{DEMO.unknown}</div>
                 </div>
               </div>
             </div>
@@ -852,7 +1044,7 @@ function ArchitectureScreen({ setActiveTab }: { setActiveTab: (tab: string) => v
 
         <div className="pipeline-item">
           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent)', marginBottom: '8px' }}>5. ANSWER</div>
-          <div style={{ fontSize: '14px', lineHeight: '1.5' }}>"Avatar() was introduced as a reusable application-level wrapper..."</div>
+          <div style={{ fontSize: '14px', lineHeight: '1.5' }}>“{DEMO.answer}”</div>
         </div>
       </div>
 

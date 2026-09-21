@@ -118,6 +118,10 @@ body {
 .content::-webkit-scrollbar {
   display: none;
 }
+/* Children must scroll, not shrink, when a screen is taller than the viewport */
+.content > * {
+  flex-shrink: 0;
+}
 
 .greeting h1 {
   font-size: 32px;
@@ -942,3 +946,95 @@ body {
   color: var(--text-muted);
   line-height: 1.5;
 }
+
+/* ---- Refinements ---- */
+.restart-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.restart-btn:hover { color: var(--text-main); border-color: var(--text-muted); }
+
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.memory-button {
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.memory-button:hover { background: var(--card-hover); }
+.memory-card { display: flex; flex-direction: column; }
+.memory-card .memory-item[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.memory-detail {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.memory-detail p { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+
+.chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.chain-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--text-muted);
+}
+.chain-chip.issue { color: #f59e0b; border-color: rgba(245, 158, 11, 0.3); }
+.chain-chip.pr { color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
+.chain-chip.commit { color: #a78bfa; border-color: rgba(167, 139, 250, 0.3); }
+.chain-sep { opacity: 0.5; margin-left: 2px; }
+
+.search-box {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card-bg); border: 1px solid var(--border);
+  border-radius: 14px; padding: 10px 14px; color: var(--text-muted);
+}
+.search-box input {
+  flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+  color: var(--text-main); font-size: 14px; font-family: inherit;
+}
+.empty-note { text-align: center; color: var(--text-muted); font-size: 13px; }
+
+.settings-group { display: flex; flex-direction: column; gap: 10px; }
+.settings-label { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted); }
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px;
+}
+.settings-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+.settings-note { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.settings-badge {
+  font-size: 11px; font-weight: 600; color: #10b981; background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 999px; padding: 3px 10px; flex-shrink: 0;
+}
+.settings-badge.muted { color: var(--text-muted); background: transparent; border-color: var(--border); }
+.toggle {
+  width: 44px; height: 26px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--card-hover); position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.2s;
+}
+.toggle span {
+  position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; transition: transform 0.2s;
+}
+.toggle.on { background: var(--accent); border-color: var(--accent); }
+.toggle.on span { transform: translateX(18px); }
+
+.scanner-video {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; opacity: 0.85;
+}
+.scan-tools { display: flex; flex-direction: column; gap: 8px; }
+.scan-camera { padding: 10px 16px; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.card > .card-subtitle:last-child { margin-bottom: 0; }
